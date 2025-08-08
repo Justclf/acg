@@ -122,7 +122,7 @@ class SimpleCertificateAuthority:
         """
         Issue certificate for user's public keys.
         
-        The certificate proves that these keys belong to this username.
+        The certificate proves that these keys belong to this username. Different certificate is issued to every user
         
         Args:
             username: User's username
@@ -154,8 +154,8 @@ class SimpleCertificateAuthority:
             # Store user's actual keys in certificate extension (simple approach)
             user_keys_data = {
                 "username": username,
-                "ed25519_public_key": ed25519_public_key,
-                "x25519_public_key": x25519_public_key,
+                "ed25519_public_key": ed25519_public_key, # uses user unique ed25519 key
+                "x25519_public_key": x25519_public_key, # uses x25519 unique public key
                 "issued_at": datetime.utcnow().isoformat()
             }
             
