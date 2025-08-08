@@ -1,0 +1,8 @@
+{
+  "username": "Clf",
+  "ed25519_private": "89Bvuc5LFZ3eqPVdNLrh/XXtEKSCoZMFFUo/mT9GutU=",
+  "x25519_private": "cAr91TiHpGsGmn6YjnG2NFBDO4Q1VGRS4/DFsQ+e8GE=",
+  "ed25519_public": "Y/QPwBbVGSsJtjZqtXMb9DPBJBMIUuqHQ8CRB9NyldQ=",
+  "x25519_public": "OpmekqL4j5WYwuFRgNbxfP6BDVJffe0ifEfbHNR+KVw=",
+  "created_at": "<function getctime at 0x0000028821D83CA0>"
+}

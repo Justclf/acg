@@ -9,7 +9,7 @@ app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
 # Initialize database
-db = DatabaseManager(password='1qwer$#@!')  
+db = DatabaseManager(password='Yoyoman123')   # Change password
 
 @app.route('/api/health', methods=['GET'])
 def health():
