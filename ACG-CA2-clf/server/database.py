@@ -10,7 +10,7 @@ class DatabaseManager:
     """Simple database manager for secure messaging system."""
     
     def __init__(self, host='localhost', database='secure_messaging', 
-                 user='root', password='1qwer$#@!'):
+                 user='root', password='Yoyoman123'):
         self.host = host
         self.database = database
         self.user = user
