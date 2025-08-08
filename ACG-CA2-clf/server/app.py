@@ -1,15 +1,41 @@
-# app.py - Fixed Flask Server with Proper Message Endpoints
+# app.py - Complete Flask Server with PKI Support
 # IT2504 Applied Cryptography Assignment 2
 
 from flask import Flask, request, jsonify, session
 import secrets
+import sys
+import os
 from database import DatabaseManager
+
+# Add client directory to path for PKI imports
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'client'))
+
+# Import PKI safely
+try:
+    from simple_pki import SimpleCertificateAuthority
+    PKI_AVAILABLE = True
+except ImportError:
+    print("⚠️ PKI module not found - running in legacy mode")
+    PKI_AVAILABLE = False
+    SimpleCertificateAuthority = None
 
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
 # Initialize database
-db = DatabaseManager(password='Yoyoman123')   # Change password
+db = DatabaseManager(password='Yoyoman123')   # Change password as needed
+
+# Initialize PKI CA
+ca = None
+if PKI_AVAILABLE:
+    try:
+        ca = SimpleCertificateAuthority("SecureMessaging Server CA")
+        print("✅ PKI Certificate Authority initialized")
+    except Exception as e:
+        print(f"⚠️ PKI CA initialization failed: {e}")
+        ca = None
+else:
+    print("⚠️ Running without PKI support")
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -64,39 +90,84 @@ def get_users():
     users = db.get_users(session['user_id'])
     return jsonify({'users': users}), 200
 
-@app.route('/api/keys/<username>', methods=['GET'])
-def get_keys(username):
-    """Get public keys for user."""
-    if 'user_id' not in session:
-        return jsonify({'error': 'Not logged in'}), 401
-    
-    keys = db.get_public_keys(username)
-    if keys:
-        return jsonify({'keys': keys}), 200
-    else:
-        return jsonify({'error': 'Keys not found'}), 404
-
 @app.route('/api/keys', methods=['POST'])
 def store_keys():
-    """Store public keys."""
+    """Store public keys with optional certificate generation."""
     if 'user_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
     
     data = request.get_json()
     ed25519_key = data.get('ed25519_public_key')
     x25519_key = data.get('x25519_public_key')
+    request_certificate = data.get('request_certificate', False)
     
     if not ed25519_key or not x25519_key:
         return jsonify({'error': 'Both keys required'}), 400
     
+    # Store keys using existing method
     success = db.store_public_keys(session['user_id'], ed25519_key, x25519_key)
     
     if success:
-        return jsonify({'message': 'Keys stored'}), 200
+        certificate = None
+        
+        # Generate certificate if requested and CA available
+        if request_certificate and ca and PKI_AVAILABLE:
+            try:
+                certificate = ca.issue_user_certificate(
+                    session['username'], ed25519_key, x25519_key
+                )
+                # Store certificate in database
+                db.store_user_certificate(session['user_id'], certificate)
+                print(f"✅ Certificate issued for {session['username']}")
+            except Exception as e:
+                print(f"⚠️ Certificate generation failed: {e}")
+                # Continue without certificate - not a fatal error
+        
+        message = 'Keys stored with certificate' if certificate else 'Keys stored'
+        return jsonify({'message': message, 'certificate': certificate}), 200
     else:
         return jsonify({'error': 'Failed to store keys'}), 500
 
-# FIXED: Handle both GET and POST on /api/messages properly
+@app.route('/api/keys/<username>', methods=['GET'])
+def get_keys(username):
+    """Get public keys with certificate if available."""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    # Get keys using existing method
+    keys = db.get_public_keys(username)
+    if keys:
+        # Add certificate if available
+        try:
+            certificate = db.get_user_certificate(username)
+            if certificate:
+                keys['certificate'] = certificate
+        except AttributeError:
+            # Database method doesn't exist yet - that's okay
+            pass
+        except Exception as e:
+            print(f"⚠️ Error getting certificate: {e}")
+        
+        return jsonify({'keys': keys}), 200
+    else:
+        return jsonify({'error': 'Keys not found'}), 404
+
+@app.route('/api/ca-certificate', methods=['GET'])
+def get_ca_certificate():
+    """Get CA certificate for client verification."""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    if ca and PKI_AVAILABLE:
+        try:
+            ca_cert_pem = ca.get_ca_certificate_pem()
+            return jsonify({'ca_certificate': ca_cert_pem}), 200
+        except Exception as e:
+            print(f"❌ Error getting CA certificate: {e}")
+            return jsonify({'error': 'Failed to get CA certificate'}), 500
+    else:
+        return jsonify({'error': 'PKI not available'}), 503
+
 @app.route('/api/messages', methods=['GET', 'POST'])
 def messages():
     """Handle messages - GET to retrieve, POST to send."""

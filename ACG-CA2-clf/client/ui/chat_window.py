@@ -1,4 +1,4 @@
-# ui/chat_window.py - Clean Main Chat Interface
+# ui/chat_window.py - FINAL WORKING VERSION
 # IT2504 Applied Cryptography Assignment 2
 
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, 
@@ -368,11 +368,12 @@ class ChatWindow(QMainWindow):
             
             self.add_system_message(f"Loading {len(user_messages)} previous messages...")
             
-            # Get keys for both users
-            sender_keys = self.network_client.get_user_public_keys(username)
+            # Get keys for both users - FIXED: Get both sender and recipient keys
+            other_user_keys = self.network_client.get_user_public_keys(username)
             my_crypto_keys = self.key_manager.get_my_encryption_keys(self.username)
+            my_public_keys = self.key_manager.get_my_public_keys(self.username)
             
-            if not sender_keys or not my_crypto_keys:
+            if not other_user_keys or not my_crypto_keys or not my_public_keys:
                 self.add_system_message("⚠️ Cannot load messages - keys not available")
                 return
             
@@ -391,38 +392,28 @@ class ChatWindow(QMainWindow):
                     if message_id in self.displayed_message_ids:
                         continue
                     
+                    # FIXED: Proper key handling for both sent and received messages
                     if is_sent:
-                        # For sent messages, we need to decrypt using recipient's public key
-                        # But we need to get the recipient's keys
-                        recipient_keys = self.network_client.get_user_public_keys(msg['recipient_username'])
-                        if not recipient_keys:
-                            self.add_system_message(f"⚠️ Cannot decrypt sent message - recipient keys not available")
-                            continue
-                        
-                        # Get my own public keys for signature verification
-                        my_public_keys = self.key_manager.get_my_public_keys(self.username)
-                        if not my_public_keys:
-                            self.add_system_message(f"⚠️ Cannot verify sent message - your public keys not available")
-                            continue
-                        
-                        # Decrypt using recipient's public key and my private key
+                        # For sent messages: I sent TO the other user
+                        # Use: other user's X25519 public + my X25519 private + my ED25519 public (for signature)
                         decrypted_message, signature_valid = self.crypto.process_message_from_server(
                             msg['encrypted_message'],
                             msg['nonce'],
                             msg['signature'],
-                            recipient_keys['x25519_public_key'],
-                            my_crypto_keys['x25519_private'],
-                            my_public_keys['ed25519_public']  # My public key for signature verification
+                            other_user_keys['x25519_public_key'],  # recipient's public
+                            my_crypto_keys['x25519_private'],      # my private
+                            my_public_keys['ed25519_public']       # my public for signature
                         )
                     else:
-                        # For received messages, decrypt using sender's public key
+                        # For received messages: other user sent TO me
+                        # Use: other user's X25519 public + my X25519 private + other user's ED25519 public (for signature)
                         decrypted_message, signature_valid = self.crypto.process_message_from_server(
                             msg['encrypted_message'],
                             msg['nonce'],
                             msg['signature'],
-                            sender_keys['x25519_public_key'],
-                            my_crypto_keys['x25519_private'],
-                            sender_keys['ed25519_public_key']
+                            other_user_keys['x25519_public_key'],  # sender's public
+                            my_crypto_keys['x25519_private'],      # my private
+                            other_user_keys['ed25519_public_key']  # sender's public for signature
                         )
                     
                     if decrypted_message:
@@ -446,7 +437,7 @@ class ChatWindow(QMainWindow):
         # Initialize the message count for this user to prevent re-displaying loaded messages
         if not hasattr(self, 'last_message_count'):
             self.last_message_count = {}
-        self.last_message_count[username] = len(user_messages)
+        self.last_message_count[username] = len(user_messages) if 'user_messages' in locals() else 0
     
     def refresh_data(self):
         """Refresh both users and messages."""
@@ -486,90 +477,8 @@ class ChatWindow(QMainWindow):
             last_count = self.last_message_count.get(username, 0)
             
             if current_count > last_count:
-                # We have new messages
-                new_messages = user_messages[last_count:]  # Get only the new ones
-                
-                # Get keys for decryption
-                sender_keys = self.network_client.get_user_public_keys(username)
-                my_crypto_keys = self.key_manager.get_my_encryption_keys(self.username)
-                my_public_keys = self.key_manager.get_my_public_keys(self.username)
-                
-                if sender_keys and my_crypto_keys and my_public_keys:
-                    for msg in new_messages:
-                        try:
-                            # Determine if this is a sent or received message
-                            is_sent = msg['sender_username'] == self.username
-                            sender_name = "You" if is_sent else msg['sender_username']
-                            
-                            # Create unique message ID
-                            message_id = f"{msg['message_id']}_{msg['sender_username']}_{msg['timestamp']}"
-                            
-                            # Skip if we've already displayed this message
-                            if message_id in self.displayed_message_ids:
-                                continue
-                            
-                            # For sent messages, check if we've already tracked this as sent
-                            if is_sent:
-                                # Try to decrypt the message to get its content for tracking
-                                try:
-                                    recipient_keys = self.network_client.get_user_public_keys(msg['recipient_username'])
-                                    my_crypto_keys = self.key_manager.get_my_encryption_keys(self.username)
-                                    my_public_keys = self.key_manager.get_my_public_keys(self.username)
-                                    
-                                    if recipient_keys and my_crypto_keys and my_public_keys:
-                                        decrypted_content, _ = self.crypto.process_message_from_server(
-                                            msg['encrypted_message'],
-                                            msg['nonce'],
-                                            msg['signature'],
-                                            recipient_keys['x25519_public_key'],
-                                            my_crypto_keys['x25519_private'],
-                                            my_public_keys['ed25519_public']
-                                        )
-                                        
-                                        if decrypted_content:
-                                            # Create the same key format used when sending
-                                            sent_message_key = f"{msg['sender_username']}_{msg['recipient_username']}_{decrypted_content}"
-                                            if sent_message_key in self.sent_message_tracker:
-                                                continue  # Skip this message as we already displayed it when sending
-                                except:
-                                    pass  # If decryption fails, continue with normal processing
-                            
-                            if is_sent:
-                                # For sent messages, decrypt using recipient's public key
-                                recipient_keys = self.network_client.get_user_public_keys(msg['recipient_username'])
-                                if not recipient_keys:
-                                    continue
-                                
-                                decrypted_message, signature_valid = self.crypto.process_message_from_server(
-                                    msg['encrypted_message'],
-                                    msg['nonce'],
-                                    msg['signature'],
-                                    recipient_keys['x25519_public_key'],
-                                    my_crypto_keys['x25519_private'],
-                                    my_public_keys['ed25519_public']
-                                )
-                            else:
-                                # For received messages, decrypt using sender's public key
-                                decrypted_message, signature_valid = self.crypto.process_message_from_server(
-                                    msg['encrypted_message'],
-                                    msg['nonce'],
-                                    msg['signature'],
-                                    sender_keys['x25519_public_key'],
-                                    my_crypto_keys['x25519_private'],
-                                    sender_keys['ed25519_public_key']
-                                )
-                            
-                            if decrypted_message:
-                                self.add_message_to_display(sender_name, decrypted_message, is_sent)
-                                self.displayed_message_ids.add(message_id)
-                                
-                                if not is_sent and not signature_valid:
-                                    self.add_system_message(f"⚠️ New message failed signature verification!")
-                                
-                        except Exception as e:
-                            self.add_system_message(f"❌ Failed to decrypt new message: {str(e)}")
-                
-                self.last_message_count[username] = current_count
+                # We have new messages - reload the conversation
+                self.load_messages_with_user(username)
             
         except Exception as e:
             # Don't spam errors for refresh issues

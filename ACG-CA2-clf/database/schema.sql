@@ -19,6 +19,7 @@ CREATE TABLE public_keys (
     user_id INT NOT NULL,
     ed25519_public_key TEXT NOT NULL,    -- For digital signatures
     x25519_public_key TEXT NOT NULL,     -- For ECDH key exchange
+    certificate TEXT NULL,               -- PKI certificate for this key pair
     key_created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
