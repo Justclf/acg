@@ -10,6 +10,7 @@ from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import padding as asy_padding, rsa, ec, ed25519
 
 class SimpleCertificateAuthority:
     """
@@ -181,62 +182,74 @@ class SimpleCertificateAuthority:
             print(f"❌ Failed to issue certificate: {e}")
             raise
     
-    def verify_user_certificate(self, certificate_pem: str) -> Tuple[bool, Optional[Dict]]:
-        """
-        Verify a user's certificate and extract their keys.
-        
-        Args:
-            certificate_pem: Certificate in PEM format
-            
-        Returns:
-            Tuple of (is_valid, user_data or None)
-        """
+def verify_user_certificate(self, certificate_pem: str) -> Tuple[bool, Optional[Dict]]:
+    """
+    Verify a user's certificate and extract their keys.
+    Returns: (is_valid, user_data or None)
+    """
+    try:
+        print("🔍 Verifying user certificate...")
+
+        # 1) Load cert
+        certificate = x509.load_pem_x509_certificate(certificate_pem.encode('utf-8'))
+
+        # 2) Verify CA signature (CRITICAL)
+        ca_public_key = self.ca_certificate.public_key()
         try:
-            print("🔍 Verifying user certificate...")
-            
-            # Load the certificate
-            certificate = x509.load_pem_x509_certificate(certificate_pem.encode('utf-8'))
-            
-            # Verify it was signed by our CA
-            ca_public_key = self.ca_certificate.public_key()
-            
-            # Simple signature verification (this is a basic check)
-            try:
-                # In a full implementation, you'd verify the signature properly
-                # For simplicity, we'll check if issuer matches our CA
-                if certificate.issuer != self.ca_certificate.subject:
-                    print("❌ Certificate not issued by our CA")
-                    return False, None
-            except Exception as e:
-                print(f"❌ Certificate signature verification failed: {e}")
+            if isinstance(ca_public_key, rsa.RSAPublicKey):
+                # Your CA is RSA-2048 → PKCS#1 v1.5 with the cert's hash
+                ca_public_key.verify(
+                    certificate.signature,
+                    certificate.tbs_certificate_bytes,
+                    asy_padding.PKCS1v15(),
+                    certificate.signature_hash_algorithm,
+                )
+            elif isinstance(ca_public_key, ed25519.Ed25519PublicKey):
+                ca_public_key.verify(certificate.signature, certificate.tbs_certificate_bytes)
+            elif isinstance(ca_public_key, ec.EllipticCurvePublicKey):
+                ca_public_key.verify(
+                    certificate.signature,
+                    certificate.tbs_certificate_bytes,
+                    ec.ECDSA(certificate.signature_hash_algorithm),
+                )
+            else:
+                print("❌ Unsupported CA key type")
                 return False, None
-            
-            # Check validity period
-            now = datetime.utcnow()
-            if now < certificate.not_valid_before or now > certificate.not_valid_after:
-                print("❌ Certificate expired or not yet valid")
-                return False, None
-            
-            # Extract user data from custom extension
-            user_data = None
-            for extension in certificate.extensions:
-                if extension.oid.dotted_string == "1.2.3.4.5.6.7.8.9":
-                    try:
-                        user_data = json.loads(extension.value.decode('utf-8'))
-                        break
-                    except:
-                        pass
-            
-            if not user_data:
-                print("❌ Certificate missing user data")
-                return False, None
-            
-            print(f"✅ Certificate verified for user: {user_data['username']}")
-            return True, user_data
-            
         except Exception as e:
-            print(f"❌ Certificate verification failed: {e}")
+            print(f"❌ Certificate signature invalid: {e}")
             return False, None
+
+        # (Optional but fine to keep) Issuer DN matches our CA
+        if certificate.issuer != self.ca_certificate.subject:
+            print("❌ Certificate not issued by our CA (DN mismatch)")
+            return False, None
+
+        # 3) Validity window
+        now = datetime.utcnow()
+        if now < certificate.not_valid_before or now > certificate.not_valid_after:
+            print("❌ Certificate expired or not yet valid")
+            return False, None
+
+        # 4) Extract your custom extension (holds the user's Ed25519/X25519 keys)
+        user_data = None
+        for extension in certificate.extensions:
+            if extension.oid.dotted_string == "1.2.3.4.5.6.7.8.9":
+                try:
+                    user_data = json.loads(extension.value.decode('utf-8'))
+                    break
+                except Exception:
+                    pass
+
+        if not user_data:
+            print("❌ Certificate missing user data")
+            return False, None
+
+        print(f"✅ Certificate verified for user: {user_data['username']}")
+        return True, user_data
+
+    except Exception as e:
+        print(f"❌ Certificate verification failed: {e}")
+        return False, None
 
 
 class PKIEnhancedNetworkClient:
@@ -342,6 +355,8 @@ class PKIEnhancedNetworkClient:
     def __getattr__(self, name):
         return getattr(self.original_client, name)
 
+def load_ca_certificate_pem(self, pem: str) -> None:
+    self.ca_certificate = x509.load_pem_x509_certificate(pem.encode('utf-8'))
 
 # Simple integration example
 def test_simple_pki():
