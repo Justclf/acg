@@ -1,0 +1,8 @@
+{
+  "username": "pop",
+  "ed25519_private": "LiWaZuJpsDd5YQeDUq0RurTI7FdyhHRp+g6pfOA+1aQ=",
+  "x25519_private": "uKrojHaNosJj7OlOejZuyU0rmTxdKUR75RnVHPTXG1s=",
+  "ed25519_public": "i8sAFq+U6PUim+V/OTb1131NWRI0HIpts2DYXYrlZc8=",
+  "x25519_public": "kcr6dZFxyI7jGWYQJG1O2KEE2ahj92IaOQdPNGh6IA4=",
+  "created_at": "<function getctime at 0x000001D74FEA3CA0>"
+}

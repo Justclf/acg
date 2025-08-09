@@ -246,18 +246,17 @@ class DatabaseManager:
     # ==================== PKI CERTIFICATE METHODS ====================
     
     def store_user_certificate(self, user_id, certificate):
-        """Store user's certificate (safe implementation)."""
+        """Store user's certificate."""
         try:
             cursor = self.connection.cursor()
             
-            # Check if certificate column exists
-            cursor.execute("DESCRIBE public_keys")
-            columns = [row[0] for row in cursor.fetchall()]
-            
-            if 'certificate' not in columns:
-                print("⚠️ Certificate column doesn't exist - run: ALTER TABLE public_keys ADD COLUMN certificate TEXT NULL;")
-                cursor.close()
-                return False
+            # Check if certificate column exists, if not add it
+            cursor.execute("SHOW COLUMNS FROM public_keys LIKE 'certificate'")
+            if not cursor.fetchone():
+                print("⚠️ Adding certificate column to database...")
+                cursor.execute("ALTER TABLE public_keys ADD COLUMN certificate TEXT NULL")
+                self.connection.commit()
+                print("✅ Certificate column added")
             
             # Update the user's record with certificate
             cursor.execute("""
@@ -266,33 +265,27 @@ class DatabaseManager:
                 WHERE user_id = %s
             """, (certificate, user_id))
             
+            affected_rows = cursor.rowcount
             self.connection.commit()
             cursor.close()
-            print(f"✅ Certificate stored for user {user_id}")
-            return True
             
-        except Error as e:
+            if affected_rows > 0:
+                print(f"✅ Certificate stored for user {user_id}")
+                return True
+            else:
+                print(f"⚠️ No rows updated for user {user_id}")
+                return False
+                
+        except Exception as e:
             print(f"❌ Error storing certificate: {e}")
             if self.connection:
                 self.connection.rollback()
             return False
-        except Exception as e:
-            print(f"❌ Unexpected error storing certificate: {e}")
-            return False
 
     def get_user_certificate(self, username):
-        """Get user's certificate (safe implementation)."""
+        """Get user's certificate."""
         try:
             cursor = self.connection.cursor()
-            
-            # Check if certificate column exists
-            cursor.execute("DESCRIBE public_keys")
-            columns = [row[0] for row in cursor.fetchall()]
-            
-            if 'certificate' not in columns:
-                print("⚠️ Certificate column doesn't exist yet")
-                cursor.close()
-                return None
             
             cursor.execute("""
                 SELECT pk.certificate
@@ -307,12 +300,12 @@ class DatabaseManager:
             cursor.close()
             
             if result and result[0]:
+                print(f"✅ Certificate found for {username}")
                 return result[0]
-            return None
-            
-        except Error as e:
-            print(f"❌ Error getting certificate: {e}")
-            return None
+            else:
+                print(f"⚠️ No certificate found for {username}")
+                return None
+                
         except Exception as e:
-            print(f"❌ Unexpected error getting certificate: {e}")
+            print(f"❌ Error getting certificate: {e}")
             return None

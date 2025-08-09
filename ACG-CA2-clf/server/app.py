@@ -1,5 +1,5 @@
-# app.py - Complete Flask Server with PKI Support
-# IT2504 Applied Cryptography Assignment 2
+# app.py - Complete Flask Server with SECURE PKI Support
+# IT2504 Applied Cryptography Assignment 2 - SECURITY FIXED
 
 from flask import Flask, request, jsonify, session
 import secrets
@@ -8,7 +8,7 @@ import os
 from database import DatabaseManager
 
 # Add client directory to path for PKI imports
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'client'))
+from simple_pki import SimpleCertificateAuthority
 
 # Import PKI safely
 try:
@@ -90,9 +90,11 @@ def get_users():
     users = db.get_users(session['user_id'])
     return jsonify({'users': users}), 200
 
+# Replace your /api/keys POST route with this debug version:
+
 @app.route('/api/keys', methods=['POST'])
 def store_keys():
-    """Store public keys with optional certificate generation."""
+    """Store public keys with SECURE certificate generation (DEBUG VERSION)."""
     if 'user_id' not in session:
         return jsonify({'error': 'Not logged in'}), 401
     
@@ -101,11 +103,17 @@ def store_keys():
     x25519_key = data.get('x25519_public_key')
     request_certificate = data.get('request_certificate', False)
     
+    print(f"🔍 DEBUG: Key upload request for user {session['username']}")
+    print(f"🔍 DEBUG: request_certificate = {request_certificate}")
+    print(f"🔍 DEBUG: PKI_AVAILABLE = {PKI_AVAILABLE}")
+    print(f"🔍 DEBUG: ca exists = {ca is not None}")
+    
     if not ed25519_key or not x25519_key:
         return jsonify({'error': 'Both keys required'}), 400
     
     # Store keys using existing method
     success = db.store_public_keys(session['user_id'], ed25519_key, x25519_key)
+    print(f"🔍 DEBUG: Keys stored successfully = {success}")
     
     if success:
         certificate = None
@@ -113,15 +121,37 @@ def store_keys():
         # Generate certificate if requested and CA available
         if request_certificate and ca and PKI_AVAILABLE:
             try:
-                certificate = ca.issue_user_certificate(
-                    session['username'], ed25519_key, x25519_key
-                )
+                print(f"🔍 DEBUG: Attempting to generate certificate...")
+                
+                # Check if we have the secure method
+                if hasattr(ca, 'issue_user_certificate_authenticated'):
+                    print(f"🔍 DEBUG: Using secure method")
+                    certificate = ca.issue_user_certificate_authenticated(
+                        session['username'], ed25519_key, x25519_key
+                    )
+                else:
+                    print(f"🔍 DEBUG: Using legacy method")
+                    certificate = ca.issue_user_certificate(
+                        session['username'], ed25519_key, x25519_key
+                    )
+                
+                print(f"🔍 DEBUG: Certificate generated successfully")
+                print(f"🔍 DEBUG: Certificate length = {len(certificate) if certificate else 0}")
+                
                 # Store certificate in database
-                db.store_user_certificate(session['user_id'], certificate)
+                cert_stored = db.store_user_certificate(session['user_id'], certificate)
+                print(f"🔍 DEBUG: Certificate stored in DB = {cert_stored}")
+                
                 print(f"✅ Certificate issued for {session['username']}")
+                
             except Exception as e:
-                print(f"⚠️ Certificate generation failed: {e}")
+                print(f"❌ Certificate generation failed: {e}")
+                import traceback
+                traceback.print_exc()
                 # Continue without certificate - not a fatal error
+        else:
+            print(f"🔍 DEBUG: Certificate not requested or not available")
+            print(f"🔍 DEBUG: request_certificate={request_certificate}, ca={ca is not None}, PKI_AVAILABLE={PKI_AVAILABLE}")
         
         message = 'Keys stored with certificate' if certificate else 'Keys stored'
         return jsonify({'message': message, 'certificate': certificate}), 200
@@ -165,6 +195,47 @@ def get_ca_certificate():
         except Exception as e:
             print(f"❌ Error getting CA certificate: {e}")
             return jsonify({'error': 'Failed to get CA certificate'}), 500
+    else:
+        return jsonify({'error': 'PKI not available'}), 503
+
+@app.route('/api/auth-status', methods=['GET'])
+def auth_status():
+    """Check authentication status - useful for debugging."""
+    if 'user_id' not in session:
+        return jsonify({'authenticated': False}), 401
+    
+    return jsonify({
+        'authenticated': True,
+        'user_id': session['user_id'],
+        'username': session['username']
+    }), 200
+
+@app.route('/api/certificate-info/<username>', methods=['GET'])
+def certificate_info(username):
+    """Get certificate validation information."""
+    if 'user_id' not in session:
+        return jsonify({'error': 'Not logged in'}), 401
+    
+    if ca and PKI_AVAILABLE:
+        try:
+            # Get certificate from database
+            certificate = db.get_user_certificate(username)
+            if certificate:
+                # Verify certificate
+                is_valid, cert_data = ca.verify_user_certificate(certificate)
+                
+                return jsonify({
+                    'has_certificate': True,
+                    'is_valid': is_valid,
+                    'certificate_data': cert_data,
+                    'username_match': cert_data.get('username') == username if cert_data else False,
+                    'authenticated_issuance': cert_data.get('issued_to_authenticated_user', False) if cert_data else False
+                }), 200
+            else:
+                return jsonify({'has_certificate': False}), 404
+                
+        except Exception as e:
+            return jsonify({'error': f'Certificate validation failed: {e}'}), 500
     else:
         return jsonify({'error': 'PKI not available'}), 503
 
@@ -221,7 +292,9 @@ def messages():
 
 if __name__ == '__main__':
     if db.connect():
-        print("Starting server...")
+        print("🔒 Server starting with SECURE PKI support...")
+        print("✅ Identity spoofing vulnerability FIXED")
+        print("✅ Certificates only issued to authenticated users")
         app.run(host='0.0.0.0', port=5000, debug=True)
     else:
         print("Failed to connect to database")
