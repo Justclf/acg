@@ -1,8 +1,0 @@
-{
-  "username": "banana",
-  "ed25519_private": "2S8GCIRjv1ju26l2FHnlpqpv4L+mwnxhqfDKLUKhG9s=",
-  "x25519_private": "kPHl4b+cHIFxATslPP168SMrG/Ag8KbKMct6ykHT5EU=",
-  "ed25519_public": "P8X7Jy5FO3MrFw3RPcXiEJN/yxrWs6yjcnDuPFPc2g4=",
-  "x25519_public": "5saHWoUENDQGq3OcVk/EI6xyfpSlbUckgbNKNuRAaDo=",
-  "created_at": "<function getctime at 0x00000184DFFB3CA0>"
-}

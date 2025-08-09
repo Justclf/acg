@@ -1,8 +1,0 @@
-{
-  "username": "app",
-  "ed25519_private": "5kSpjTHEiRhnhHzZAdMXUmyT6VLRHoLkvUi0O7DT6us=",
-  "x25519_private": "WLUHpayzBwHCucWjaqYQ1RTH1mbcv4hm2jxOWJQ83V8=",
-  "ed25519_public": "GYbtkAVfukyUeprGKwJ+6kSueiFHNtsYjGSGxCOHYZQ=",
-  "x25519_public": "diuodsE5LnZYI5aM6Q2BWyS3HfzOFkVdfEXN3+eQFwo=",
-  "created_at": "<function getctime at 0x000001DE43FA3CA0>"
-}

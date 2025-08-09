@@ -1,8 +1,0 @@
-{
-  "username": "poo",
-  "ed25519_private": "f5MgDOhxHYFktHHeADOzSZSW2iiRnasfocIodHgjrq8=",
-  "x25519_private": "+ImJI+2NljEy3dPafeyB8XtDEV/g3c9sQAIE5IAVn1Q=",
-  "ed25519_public": "eALDAGNZvSWvWtr3qVSR9M223gjLx5gv14X1BaaAZp0=",
-  "x25519_public": "QrIR405fM2iPZ+YqXNl1iZsIpcI09M4s306CoUGDIlo=",
-  "created_at": "<function getctime at 0x000001806B843CA0>"
-}

@@ -1,8 +1,0 @@
-{
-  "username": "iop",
-  "ed25519_private": "0cbMVrI2K2bFEG/76YqEBpF0KbkhaEnzdMrcids0jcM=",
-  "x25519_private": "uNm10r+zDYX9gCVN3W3UK/d+/bS/i1dttiPBiTHvDXI=",
-  "ed25519_public": "OvMfDCFXnGcid7BEjYaavQ77y07a9S+N63Fzbylnglk=",
-  "x25519_public": "mD7ipfwlev0bm4p231ZPjl8LuPIcJP8+0ixLR7v03TA=",
-  "created_at": "<function getctime at 0x0000023105EF3CA0>"
-}

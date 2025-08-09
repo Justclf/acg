@@ -1,0 +1,8 @@
+{
+  "username": "retard",
+  "ed25519_private": "BNLbpnf+Vftk3DG5ChJ8DDGXGWXkl3JbNEJATUMSHGU=",
+  "x25519_private": "IItXl5xTeDLQkj0vrcV0WM99dsqMqXOkUNVfQxgLIE0=",
+  "ed25519_public": "TCOoRVIxJHqz76EqEAWssbTdvbRCKA0Hx3+Cc+JKIIE=",
+  "x25519_public": "NwMbw/s1uXviVMAe/C1XgAx1ACjaGsg1DmLWca8Wax0=",
+  "created_at": "<function getctime at 0x0000026CAD723CA0>"
+}
