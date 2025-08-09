@@ -158,7 +158,7 @@ def store_keys():
     else:
         return jsonify({'error': 'Failed to store keys'}), 500
 
-@app.route('/api/keys/<username>', methods=['GET'])
+@app.route('/api/keys/<username>', methods=['GET']) # returns public keys and certificate
 def get_keys(username):
     """Get public keys with certificate if available."""
     if 'user_id' not in session:
@@ -182,7 +182,7 @@ def get_keys(username):
     else:
         return jsonify({'error': 'Keys not found'}), 404
 
-@app.route('/api/ca-certificate', methods=['GET'])
+@app.route('/api/ca-certificate', methods=['GET']) # returns CA certificate
 def get_ca_certificate():
     """Get CA certificate for client verification."""
     if 'user_id' not in session:

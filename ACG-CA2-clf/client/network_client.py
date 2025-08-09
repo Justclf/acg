@@ -50,7 +50,7 @@ class NetworkClient:
 
     # --------------------- PKI helpers ---------------------
 
-    def _ensure_ca_loaded(self) -> None:
+    def _ensure_ca_loaded(self) -> None: # Fetches the CA cert
         """
         Ensure we have a CA certificate loaded for verification.
         CLIENT VERSION: Only loads CA cert from server, never creates one.
@@ -81,7 +81,7 @@ class NetworkClient:
 
     # Replace _verify_and_bind_keys method in client/network_client.py with this:
 
-    def _verify_and_bind_keys(self, username: str, cert_pem: str, keys: Dict[str, str]) -> Optional[Dict[str, str]]:
+    def _verify_and_bind_keys(self, username: str, cert_pem: str, keys: Dict[str, str]) -> Optional[Dict[str, str]]: # Verifies the certificate and binds the keys
         """
         Verify the user's certificate using the server CA and bind the verified keys.
         """
@@ -257,7 +257,7 @@ class NetworkClient:
 
     # ==================== PUBLIC KEY MANAGEMENT ====================
 
-    def upload_my_public_keys(self, ed25519_public: str, x25519_public: str) -> Tuple[bool, str]:
+    def upload_my_public_keys(self, ed25519_public: str, x25519_public: str) -> Tuple[bool, str]: # Uploads the public keys to the server
         """
         Upload MY public keys to server for others to use.
         Private keys stay on client!
@@ -290,7 +290,7 @@ class NetworkClient:
             print(f"❌ Key upload failed: {error}")
             return False, error
 
-    def get_user_public_keys(self, username: str) -> Optional[Dict[str, str]]:
+    def get_user_public_keys(self, username: str) -> Optional[Dict[str, str]]: # Gets the public keys from the server
         if not self.is_logged_in:
             print("❌ Must be logged in to get user keys")
             return None
