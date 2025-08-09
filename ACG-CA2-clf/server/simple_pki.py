@@ -275,15 +275,18 @@ class SimpleCertificateAuthority:
                 print("❌ Certificate expired or not yet valid")
                 return False, None
 
-            # Extract user data
+            # Extract user data from custom extension
             user_data = None
             for extension in certificate.extensions:
                 if extension.oid.dotted_string == "1.2.3.4.5.6.7.8.9":
                     try:
-                        user_data = json.loads(extension.value.decode('utf-8'))
+                        # cryptography exposes UnrecognizedExtension.value which contains .value bytes
+                        raw_value = getattr(extension.value, 'value', extension.value)
+                        user_data = json.loads(raw_value.decode('utf-8'))
                         break
-                    except Exception:
-                        pass
+                    except Exception as parse_error:
+                        print(f"❌ Failed to parse user data extension: {parse_error}")
+                        user_data = None
 
             if not user_data:
                 print("❌ Certificate missing user data")

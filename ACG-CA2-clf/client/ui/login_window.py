@@ -215,12 +215,12 @@ class LoginWindow(QMainWindow):
                 )
                 
                 if success:
-                    self.show_status("PKI keys generated successfully!", False)
+                    self.show_status("Security certificate issued and keys uploaded!", False)
                     
                     QMessageBox.information(
                         self,
-                        "PKI Keys Generated",
-                        "Your encryption keys have been generated with PKI security!\n\n"
+                        "Keys and Certificate Ready",
+                        "Your encryption keys have been generated with a digital identity certificate!\n\n"
                         "🔐 Your private keys are stored securely on this device\n"
                         "📤 Your public keys and certificate are on the server\n"
                         "🏆 Certificate prevents man-in-the-middle attacks\n\n"
@@ -240,17 +240,37 @@ class LoginWindow(QMainWindow):
             )
             
             if success:
-                self.show_status("Keys generated successfully!", False)
-                
-                QMessageBox.information(
-                    self,
-                    "Keys Generated",
-                    "Your encryption keys have been generated!\n\n"
-                    "🔐 Your private keys are stored securely on this device\n"
-                    "📤 Your public keys are available on the server\n"
-                    "⚠️ PKI certificates not available (using legacy mode)\n\n"
-                    "You can now send and receive encrypted messages!"
-                )
+                # Detect if a certificate was actually issued (dynamic messaging)
+                has_cert = False
+                try:
+                    ok, info = self.network_client._make_request('GET', f'/api/certificate-info/{username}')
+                    has_cert = bool(ok and info.get('has_certificate') and info.get('is_valid') and info.get('username_match'))
+                except Exception:
+                    has_cert = False
+
+                if has_cert:
+                    self.show_status("Security certificate issued and keys uploaded!", False)
+                    QMessageBox.information(
+                        self,
+                        "Keys and Certificate Ready",
+                        "Your encryption keys have been generated with a digital identity certificate!\n\n"
+                        "🔐 Your private keys are stored securely on this device\n"
+                        "📤 Your public keys and certificate are on the server\n"
+                        "🏆 Certificate prevents man-in-the-middle attacks\n\n"
+                        "You can now send and receive encrypted messages!"
+                    )
+                else:
+                    self.show_status("Keys generated successfully!", False)
+                    QMessageBox.information(
+                        self,
+                        "Keys Generated",
+                        "Your encryption keys have been generated!\n\n"
+                        "🔐 Your private keys are stored securely on this device\n"
+                        "📤 Your public keys are available on the server\n"
+                        "⚠️ Security certificate not available (using legacy mode)\n\n"
+                        "You can now send and receive encrypted messages!"
+                    )
+
                 self.open_chat_window(username)
             else:
                 print(f"🔑 ❌ Key upload failed: {message}")

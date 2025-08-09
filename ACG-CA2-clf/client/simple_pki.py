@@ -22,21 +22,25 @@ class SimpleCertificateAuthority:
     - Certificate verification
     """
     
-    def __init__(self, ca_name: str = "SecureMessaging CA"):
+    def __init__(self, ca_name: str = "SecureMessaging CA", verification_only: bool = False):
         self.ca_name = ca_name
         self.ca_private_key = None
         self.ca_certificate = None
-        self.ca_directory = "ca_data"
+        self.verification_only = verification_only
         
         # SECURITY: Track issued certificates to prevent duplicates
         self.issued_certificates = {}
         
-        # Create CA directory
-        if not os.path.exists(self.ca_directory):
-            os.makedirs(self.ca_directory)
-        
-        # Load or create CA
-        self._setup_ca()
+        if self.verification_only:
+            # Client-side verifier: do not create local CA or write files
+            self.ca_directory = None
+            # Caller must load CA certificate via load_ca_certificate_pem()
+        else:
+            # Server-side (or standalone test) CA management
+            self.ca_directory = "ca_data"
+            if not os.path.exists(self.ca_directory):
+                os.makedirs(self.ca_directory)
+            self._setup_ca()
     
     def _setup_ca(self):
         """Load existing CA or create new self-signed CA."""
@@ -275,15 +279,17 @@ class SimpleCertificateAuthority:
                 print("❌ Certificate expired or not yet valid")
                 return False, None
 
-            # Extract user data
+            # Extract user data from custom extension
             user_data = None
             for extension in certificate.extensions:
                 if extension.oid.dotted_string == "1.2.3.4.5.6.7.8.9":
                     try:
-                        user_data = json.loads(extension.value.decode('utf-8'))
+                        raw_value = getattr(extension.value, 'value', extension.value)
+                        user_data = json.loads(raw_value.decode('utf-8'))
                         break
-                    except Exception:
-                        pass
+                    except Exception as parse_error:
+                        print(f"❌ Failed to parse user data extension: {parse_error}")
+                        user_data = None
 
             if not user_data:
                 print("❌ Certificate missing user data")

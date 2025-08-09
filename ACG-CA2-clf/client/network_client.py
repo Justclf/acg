@@ -11,14 +11,12 @@
 import requests
 import json
 from typing import Dict, List, Optional, Tuple
-from typing import Optional
 
 # Try relative import (when used as a package) then absolute (when run as script)
 try:
     from .simple_pki import SimpleCertificateAuthority
 except ImportError:
     from simple_pki import SimpleCertificateAuthority
-from cryptography import x509
 
 class NetworkClient:
     """
@@ -70,12 +68,8 @@ class NetworkClient:
         ca_pem = resp['ca_certificate']
         print("✅ CA certificate fetched from server")
 
-        # Create CA instance but DON'T let it create files
-        self._ca = SimpleCertificateAuthority("Client Verifier")
-        
-        # HACK: Prevent client CA from creating files by setting ca_directory to None
-        self._ca.ca_directory = None
-        self._ca.issued_certificates = {}
+        # Create CA instance in verification-only mode (no local CA files)
+        self._ca = SimpleCertificateAuthority("Client Verifier", verification_only=True)
         
         # Load the server's CA certificate
         self._ca.load_ca_certificate_pem(ca_pem)
@@ -89,57 +83,49 @@ class NetworkClient:
 
     def _verify_and_bind_keys(self, username: str, cert_pem: str, keys: Dict[str, str]) -> Optional[Dict[str, str]]:
         """
-        SIMPLE PKI: Just verify the certificate says this username owns these keys.
+        Verify the user's certificate using the server CA and bind the verified keys.
         """
-        print(f"🔍 Simple PKI verification for: {username}")
-        
-        # If no certificate, use keys without verification
+        print(f"🔍 Verifying certificate for: {username}")
+
         if not cert_pem:
-            print(f"⚠️ No certificate for {username} - using unverified keys")
-            if keys and 'ed25519_public_key' in keys and 'x25519_public_key' in keys:
-                return {
-                    'ed25519_public_key': keys['ed25519_public_key'],
-                    'x25519_public_key': keys['x25519_public_key'],
-                }
+            print("❌ No certificate provided by server; cannot verify keys against CA")
             return None
-        
-        # Simple certificate verification
+
         try:
-            # Just check if the certificate contains the expected username and keys
-            import json
-            import base64
-            
-            # Extract the user data from certificate (very simple parsing)
-            if '"username": "' + username + '"' in cert_pem:
-                # Certificate mentions this username
-                expected_ed25519 = keys.get('ed25519_public_key', '')
-                expected_x25519 = keys.get('x25519_public_key', '')
-                
-                if expected_ed25519 in cert_pem and expected_x25519 in cert_pem:
-                    # Certificate contains the same keys as the server response
-                    print(f"✅ Simple PKI: Certificate verified for {username}")
-                    print(f"✅ Certificate confirms {username} owns these keys")
-                    return {
-                        'ed25519_public_key': keys['ed25519_public_key'],
-                        'x25519_public_key': keys['x25519_public_key'],
-                    }
-                else:
-                    print(f"❌ PKI: Certificate keys don't match server keys for {username}")
-                    return None
-            else:
+            # Ensure CA certificate is loaded for verification
+            self._ensure_ca_loaded()
+
+            # Verify certificate and extract embedded user data
+            is_valid, user_data = self._ca.verify_user_certificate(cert_pem)
+            if not is_valid or not user_data:
+                print(f"❌ PKI: Certificate failed validation for {username}")
+                return None
+
+            # Check username matches the requested username
+            cert_username = user_data.get('username')
+            if cert_username != username:
                 print(f"❌ PKI: Certificate username doesn't match {username}")
                 return None
-                
-        except Exception as e:
-            print(f"⚠️ PKI verification failed for {username}: {e}")
-            print(f"⚠️ Using unverified keys as fallback")
-            
-            # Fallback to unverified keys
-            if keys and 'ed25519_public_key' in keys and 'x25519_public_key' in keys:
+
+            # Check keys in server response match those bound in the certificate
+            expected_ed25519 = user_data.get('ed25519_public_key')
+            expected_x25519 = user_data.get('x25519_public_key')
+
+            if (
+                expected_ed25519 == keys.get('ed25519_public_key') and
+                expected_x25519 == keys.get('x25519_public_key')
+            ):
+                print(f"✅ PKI: Certificate verified and keys bound for {username}")
                 return {
                     'ed25519_public_key': keys['ed25519_public_key'],
                     'x25519_public_key': keys['x25519_public_key'],
                 }
+
+            print(f"❌ PKI: Certificate keys don't match server keys for {username}")
+            return None
+
+        except Exception as e:
+            print(f"❌ PKI verification error for {username}: {e}")
             return None
 
     # --------------------- HTTP plumbing ---------------------
