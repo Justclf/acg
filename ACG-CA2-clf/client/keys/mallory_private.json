@@ -1,0 +1,8 @@
+{
+  "username": "mallory",
+  "ed25519_private": "oBkYb724UFWqAntPx0mPh6IbmHXQGMDTNJPovNCTs+g=",
+  "x25519_private": "aOv0LioqWn3OGvNWVgnZB01+r1Xb09hm/FnBpgxkPk4=",
+  "ed25519_public": "+8+O3G09KpnzYP4obNRwGcMN5Z9b33IcFZXr3HbrFWs=",
+  "x25519_public": "t28Pzh/XTYO4WYB6GZi9g+RC9M2Ed6OjwysDG98hLmE=",
+  "created_at": "<function getctime at 0x000002A798023CA0>"
+}

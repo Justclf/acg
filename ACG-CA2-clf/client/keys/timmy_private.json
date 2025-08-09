@@ -1,8 +1,0 @@
-{
-  "username": "timmy",
-  "ed25519_private": "mBqD12nLypvdUcrftl0HtKalw0YT0sZBiZKPFRMwoBY=",
-  "x25519_private": "yC3unxznjxB8QCq59rWKz34twnUpYCkZYUY2fPLY6HM=",
-  "ed25519_public": "J/mHdKkr2x3bCxoWGXFsOQlLo6+2K6TghEbG9w3az3I=",
-  "x25519_public": "B5NU9Fxkn+sfqyTKrIoaQ3+X3rICD71Z1luOx6sRfCo=",
-  "created_at": "<function getctime at 0x0000025DF56B3CA0>"
-}

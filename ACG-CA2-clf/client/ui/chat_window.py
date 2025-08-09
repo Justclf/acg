@@ -566,7 +566,7 @@ class ChatWindow(QMainWindow):
             # Get recipient's public keys from server
             recipient_keys = self.network_client.get_user_public_keys(recipient_username)
             if not recipient_keys:
-                QMessageBox.warning(self, "Error", f"Cannot get public keys for {recipient_username}")
+                QMessageBox.warning(self, "Error", f"{recipient_username} keys may have been tampered with ")
                 self.send_button.setEnabled(True)
                 return
             

@@ -235,7 +235,7 @@ class SimpleCertificateAuthority:
             print(f"❌ Failed to issue certificate: {e}")
             raise
     
-    def verify_user_certificate(self, certificate_pem: str) -> Tuple[bool, Optional[Dict]]:
+    def verify_user_certificate(self, certificate_pem: str) -> Tuple[bool, Optional[Dict]]: # Verify users cert
         """Verify a user's certificate and extract their keys."""
         try:
             print("🔍 Verifying user certificate...")
